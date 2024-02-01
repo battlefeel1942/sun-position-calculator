@@ -8,85 +8,94 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/suncalc/1.8.0/suncalc.min.js" defer></script>
 </head>
 <body class="bg-gradient-to-br from-blue-900 to-blue-500 flex flex-col justify-center items-center min-h-screen p-4">
-    <div class="text-center w-full max-w-lg px-8 bg-white rounded-xl shadow-2xl">
+    <div class="text-center w-full max-w-2xl px-8 bg-white rounded-xl shadow-2xl">
         <div id="dataSection" class="hidden">
-            <div class="mt-4 text-left flex flex-col md:flex-row md:items-center md:justify-between">
-                <div class="text-lg text-gray-700 md:w-1/2">
-                    <h2 class="font-semibold">Location:</h2>
+            <div class="mt-4 text-left flex flex-col sm:flex-row sm:items-start sm:justify-between">
+                <div class="text-lg text-gray-700 sm:w-1/3">
+                    <h2 class="text-xl font-semibold">Location:</h2>
                     <p>Latitude: <span id="latitude" class="font-medium"></span></p>
                     <p>Longitude: <span id="longitude" class="font-medium"></span></p>
-                </div>
-                <div class="hidden md:block mx-4 my-2 md:my-0 bg-gray-300" style="width: 1px; height: auto;"></div>
-                <div class="text-lg text-gray-700 mt-6 md:mt-0 md:w-1/2">
-                    <h2 class="font-semibold">Solar Data:</h2>
+                </div>                
+                <div class="text-lg text-gray-700 mt-6 sm:mt-0 sm:w-1/3">
+                    <h2 class="text-xl font-semibold">Solar Data:</h2>
                     <p>Solar Azimuth: <span id="solarAzimuth" class="font-medium"></span>°</p>
                     <p>Solar Altitude: <span id="solarAltitude" class="font-medium"></span>°</p>
+                    <p>Solar Noon: <span id="solarNoon" class="font-medium"></span></p>
+                </div>                
+                <div class="text-lg text-gray-700 mt-6 sm:mt-0 sm:w-1/3">
+                    <h2 class="text-xl font-semibold">Day Data:</h2>
+                    <p>Sunrise: <span id="sunrise" class="font-medium"></span></p>
+                    <p>Sunset: <span id="sunset" class="font-medium"></span></p>
+                    <p>Day Length: <span id="dayLength" class="font-medium"></span></p>
                 </div>
             </div>
         </div>
-        <button id="getLocation" class="text-lg bg-blue-800 hover:bg-blue-900 text-white font-medium py-4 px-8 my-8 rounded-full transition-colors duration-200">
-            Get My Location
-        </button>
+        <button id="getLocation" class="text-lg bg-blue-800 hover:bg-blue-900 text-white font-medium py-4 px-8 my-8 rounded-full transition-colors duration-200">Get My Location</button>
     </div>
     <script>
         document.addEventListener("DOMContentLoaded", function() {
-            const dataSection = document.getElementById('dataSection');
             const latitudeEl = document.getElementById('latitude');
             const longitudeEl = document.getElementById('longitude');
             const solarAzimuthEl = document.getElementById('solarAzimuth');
             const solarAltitudeEl = document.getElementById('solarAltitude');
-            let updateInterval;
+            const solarNoonEl = document.getElementById('solarNoon');
+            const sunriseEl = document.getElementById('sunrise');
+            const sunsetEl = document.getElementById('sunset');
+            const dayLengthEl = document.getElementById('dayLength');
 
             function updateSunPosition(lat, lon) {
                 const date = new Date();
-                const sunPosition = SunCalc.getPosition(date, lat, lon);
+                const solarTimes = SunCalc.getTimes(date, lat, lon);
+
                 latitudeEl.textContent = lat.toFixed(4);
                 longitudeEl.textContent = lon.toFixed(4);
+                // To ensure dynamic updates, fetch current solar position
+                const sunPosition = SunCalc.getPosition(date, lat, lon);
                 solarAzimuthEl.textContent = ((sunPosition.azimuth * 180) / Math.PI + 180).toFixed(2);
                 solarAltitudeEl.textContent = (sunPosition.altitude * 180 / Math.PI).toFixed(2);
+                solarNoonEl.textContent = solarTimes.solarNoon.toLocaleTimeString();
+                sunriseEl.textContent = solarTimes.sunrise.toLocaleTimeString();
+                sunsetEl.textContent = solarTimes.sunset.toLocaleTimeString();
+
+                // Calculate and display day length
+                const dayLength = new Date(solarTimes.sunset - solarTimes.sunrise);
+                dayLengthEl.textContent = `${dayLength.getUTCHours()}h ${dayLength.getUTCMinutes()}m`;
             }
+
+            let updateInterval;
 
             function getLocationAndUpdateURL() {
                 if (navigator.geolocation) {
                     navigator.geolocation.getCurrentPosition(position => {
                         const latitude = position.coords.latitude;
                         const longitude = position.coords.longitude;
-                        dataSection.classList.remove('hidden'); // Show the data section
-                        updateUrlParams(latitude, longitude);
+                        document.getElementById('dataSection').classList.remove('hidden');
                         updateSunPosition(latitude, longitude);
-                        if (!updateInterval) {
-                            updateInterval = setInterval(() => updateSunPosition(latitude, longitude), 1000);
-                        }
+                        clearInterval(updateInterval);
+                        updateInterval = setInterval(() => updateSunPosition(latitude, longitude), 1000);
                     }, showError);
                 } else {
                     showError({ message: "Geolocation is not supported by this browser." });
                 }
             }
 
-            function updateUrlParams(lat, lon) {
-                const url = new URL(window.location);
-                url.searchParams.set("lat", lat);
-                url.searchParams.set("lon", lon);
-                window.history.replaceState({}, '', url);
-            }
-
             function showError(error) {
-                dataSection.innerHTML = `<p class="text-red-600">${error.message || "An error occurred."}</p>`;
-                dataSection.classList.remove('hidden');
+                const errorSection = document.getElementById('dataSection');
+                errorSection.innerHTML = `<p class="text-red-500">${error.message || "An error occurred."}</p>`;
+                errorSection.classList.remove('hidden');
             }
 
             document.getElementById('getLocation').addEventListener('click', getLocationAndUpdateURL);
 
-            // Check if lat and lon are in URL params and display data
+            // Initialize with URL params if available
             const urlParams = new URLSearchParams(window.location.search);
             const lat = parseFloat(urlParams.get('lat'));
             const lon = parseFloat(urlParams.get('lon'));
             if (!isNaN(lat) && !isNaN(lon)) {
-                dataSection.classList.remove('hidden'); // Show the data section
+                document.getElementById('dataSection').classList.remove('hidden');
                 updateSunPosition(lat, lon);
-                if (!updateInterval) {
-                    updateInterval = setInterval(() => updateSunPosition(lat, lon), 1000);
-                }
+                clearInterval(updateInterval);
+                updateInterval = setInterval(() => updateSunPosition(lat, lon), 1000);
             }
         });
     </script>
