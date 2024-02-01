@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sun Position Calculator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/suncalc/1.8.0/suncalc.min.js"></script>
+</head>
+<body class="bg-gradient-to-br from-blue-50 to-indigo-100 flex flex-col justify-center items-center min-h-screen py-5">
+    <div class="text-center w-full max-w-md px-4">
+        <h1 class="text-3xl font-bold text-indigo-800 mb-8">Sun Position Calculator</h1>
+        <button id="getLocation" class="bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-2 px-6 rounded-lg transition duration-150 ease-in-out focus:outline-none focus:ring-4 focus:ring-indigo-300 focus:ring-opacity-50">
+            Get My Location
+        </button>
+        <div id="output" class="mt-8 p-6 bg-white rounded-lg shadow-xl text-left space-y-4">
+            <p class="text-sm text-gray-500">Your sun position data will appear here.</p>
+        </div>
+    </div>
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            const output = document.getElementById('output');
+            let intervalId;
+
+            function updateSunPosition(lat, lon) {
+                const date = new Date();
+                const sunPosition = SunCalc.getPosition(date, lat, lon);
+                const solarAzimuthDeg = (sunPosition.azimuth * 180 / Math.PI + 180).toFixed(2);
+                const solarAltitudeDeg = (sunPosition.altitude * 180 / Math.PI).toFixed(2);
+
+                output.innerHTML = `
+                    <div class="text-gray-800">
+                        <h2 class="font-semibold text-lg">Current Location:</h2>
+                        <p class="text-md">Latitude: ${lat.toFixed(4)}</p>
+                        <p class="text-md">Longitude: ${lon.toFixed(4)}</p>
+                    </div>
+                    <div class="text-gray-800 mt-4">
+                        <h2 class="font-semibold text-lg">Solar Data:</h2>
+                        <p class="text-md">Solar Azimuth: ${solarAzimuthDeg}°</p>
+                        <p class="text-md">Solar Altitude: ${solarAltitudeDeg}°</p>
+                    </div>
+                `;
+            }
+
+            function updateUrlParams(lat, lon) {
+                const url = new URL(window.location);
+                url.searchParams.set("lat", lat);
+                url.searchParams.set("lon", lon);
+                window.history.replaceState({}, '', url);
+            }
+
+            function getLocationAndUpdateURL() {
+                if (navigator.geolocation) {
+                    navigator.geolocation.getCurrentPosition(position => {
+                        const latitude = position.coords.latitude;
+                        const longitude = position.coords.longitude;
+                        updateUrlParams(latitude, longitude);
+                        updateSunPosition(latitude, longitude);
+                        clearInterval(intervalId); // Clear existing interval
+                        intervalId = setInterval(() => updateSunPosition(latitude, longitude), 1000);
+                    }, () => {
+                        output.innerHTML = `<p class="text-red-500">Failed to retrieve location. Please ensure location services are enabled and try again.</p>`;
+                    });
+                } else {
+                    output.innerHTML = `<p class="text-red-500">Geolocation is not supported by this browser.</p>`;
+                }
+            }
+
+            document.getElementById('getLocation').addEventListener('click', getLocationAndUpdateURL);
+
+            // Check for URL params and setup
+            const urlParams = new URLSearchParams(window.location.search);
+            const lat = parseFloat(urlParams.get('lat'));
+            const lon = parseFloat(urlParams.get('lon'));
+            if (!isNaN(lat) && !isNaN(lon)) {
+                updateSunPosition(lat, lon);
+                intervalId = setInterval(() => updateSunPosition(lat, lon), 1000);
+            }
+        });
+    </script>
+</body>
+</html>
