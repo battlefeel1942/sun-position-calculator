@@ -5,41 +5,62 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sun Position Calculator</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/suncalc/1.8.0/suncalc.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/suncalc/1.8.0/suncalc.min.js" defer></script>
 </head>
-<body class="bg-gradient-to-br from-blue-50 to-indigo-100 flex flex-col justify-center items-center min-h-screen py-5">
-    <div class="text-center w-full max-w-md px-4">
-        <h1 class="text-3xl font-bold text-indigo-800 mb-8">Sun Position Calculator</h1>
-        <button id="getLocation" class="bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-2 px-6 rounded-lg transition duration-150 ease-in-out focus:outline-none focus:ring-4 focus:ring-indigo-300 focus:ring-opacity-50">
+<body class="bg-gradient-to-br from-blue-900 to-blue-500 flex flex-col justify-center items-center min-h-screen p-4">
+    <div class="text-center w-full max-w-lg px-8 bg-white rounded-xl shadow-2xl">
+        <div id="dataSection" class="hidden">
+            <div class="mt-4 text-left flex flex-col md:flex-row md:items-center md:justify-between">
+                <div class="text-lg text-gray-700 md:w-1/2">
+                    <h2 class="font-semibold">Location:</h2>
+                    <p>Latitude: <span id="latitude" class="font-medium"></span></p>
+                    <p>Longitude: <span id="longitude" class="font-medium"></span></p>
+                </div>
+                <div class="hidden md:block mx-4 my-2 md:my-0 bg-gray-300" style="width: 1px; height: auto;"></div>
+                <div class="text-lg text-gray-700 mt-6 md:mt-0 md:w-1/2">
+                    <h2 class="font-semibold">Solar Data:</h2>
+                    <p>Solar Azimuth: <span id="solarAzimuth" class="font-medium"></span>°</p>
+                    <p>Solar Altitude: <span id="solarAltitude" class="font-medium"></span>°</p>
+                </div>
+            </div>
+        </div>
+        <button id="getLocation" class="text-lg bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-4 px-8 my-8 rounded-full transition-colors duration-200">
             Get My Location
         </button>
-        <div id="output" class="mt-8 p-6 bg-white rounded-lg shadow-xl text-left space-y-4">
-            <p class="text-sm text-gray-500">Your sun position data will appear here.</p>
-        </div>
     </div>
     <script>
         document.addEventListener("DOMContentLoaded", function() {
-            const output = document.getElementById('output');
-            let intervalId;
+            const dataSection = document.getElementById('dataSection');
+            const latitudeEl = document.getElementById('latitude');
+            const longitudeEl = document.getElementById('longitude');
+            const solarAzimuthEl = document.getElementById('solarAzimuth');
+            const solarAltitudeEl = document.getElementById('solarAltitude');
+            let updateInterval;
 
             function updateSunPosition(lat, lon) {
                 const date = new Date();
                 const sunPosition = SunCalc.getPosition(date, lat, lon);
-                const solarAzimuthDeg = (sunPosition.azimuth * 180 / Math.PI + 180).toFixed(2);
-                const solarAltitudeDeg = (sunPosition.altitude * 180 / Math.PI).toFixed(2);
+                latitudeEl.textContent = lat.toFixed(4);
+                longitudeEl.textContent = lon.toFixed(4);
+                solarAzimuthEl.textContent = ((sunPosition.azimuth * 180) / Math.PI + 180).toFixed(2);
+                solarAltitudeEl.textContent = (sunPosition.altitude * 180 / Math.PI).toFixed(2);
+            }
 
-                output.innerHTML = `
-                    <div class="text-gray-800">
-                        <h2 class="font-semibold text-lg">Current Location:</h2>
-                        <p class="text-md">Latitude: ${lat.toFixed(4)}</p>
-                        <p class="text-md">Longitude: ${lon.toFixed(4)}</p>
-                    </div>
-                    <div class="text-gray-800 mt-4">
-                        <h2 class="font-semibold text-lg">Solar Data:</h2>
-                        <p class="text-md">Solar Azimuth: ${solarAzimuthDeg}°</p>
-                        <p class="text-md">Solar Altitude: ${solarAltitudeDeg}°</p>
-                    </div>
-                `;
+            function getLocationAndUpdateURL() {
+                if (navigator.geolocation) {
+                    navigator.geolocation.getCurrentPosition(position => {
+                        const latitude = position.coords.latitude;
+                        const longitude = position.coords.longitude;
+                        dataSection.classList.remove('hidden'); // Show the data section
+                        updateUrlParams(latitude, longitude);
+                        updateSunPosition(latitude, longitude);
+                        if (!updateInterval) {
+                            updateInterval = setInterval(() => updateSunPosition(latitude, longitude), 1000);
+                        }
+                    }, showError);
+                } else {
+                    showError({ message: "Geolocation is not supported by this browser." });
+                }
             }
 
             function updateUrlParams(lat, lon) {
@@ -49,32 +70,23 @@
                 window.history.replaceState({}, '', url);
             }
 
-            function getLocationAndUpdateURL() {
-                if (navigator.geolocation) {
-                    navigator.geolocation.getCurrentPosition(position => {
-                        const latitude = position.coords.latitude;
-                        const longitude = position.coords.longitude;
-                        updateUrlParams(latitude, longitude);
-                        updateSunPosition(latitude, longitude);
-                        clearInterval(intervalId); // Clear existing interval
-                        intervalId = setInterval(() => updateSunPosition(latitude, longitude), 1000);
-                    }, () => {
-                        output.innerHTML = `<p class="text-red-500">Failed to retrieve location. Please ensure location services are enabled and try again.</p>`;
-                    });
-                } else {
-                    output.innerHTML = `<p class="text-red-500">Geolocation is not supported by this browser.</p>`;
-                }
+            function showError(error) {
+                dataSection.innerHTML = `<p class="text-red-600">${error.message || "An error occurred."}</p>`;
+                dataSection.classList.remove('hidden');
             }
 
             document.getElementById('getLocation').addEventListener('click', getLocationAndUpdateURL);
 
-            // Check for URL params and setup
+            // Check if lat and lon are in URL params and display data
             const urlParams = new URLSearchParams(window.location.search);
             const lat = parseFloat(urlParams.get('lat'));
             const lon = parseFloat(urlParams.get('lon'));
             if (!isNaN(lat) && !isNaN(lon)) {
+                dataSection.classList.remove('hidden'); // Show the data section
                 updateSunPosition(lat, lon);
-                intervalId = setInterval(() => updateSunPosition(lat, lon), 1000);
+                if (!updateInterval) {
+                    updateInterval = setInterval(() => updateSunPosition(lat, lon), 1000);
+                }
             }
         });
     </script>
