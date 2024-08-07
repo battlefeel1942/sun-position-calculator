@@ -2,7 +2,8 @@
 
 The Sun Position Calculator is a web-based application designed to provide real-time solar data based on the user's geographical location. By utilizing HTML, Tailwind CSS for styling, and JavaScript with the SunCalc library, it calculates and displays solar azimuth, solar altitude, solar noon, sunrise, sunset times, and the day's length.
 
-**Live Demo**: [Sun Position Calculator](https://battlefeel1942.github.io/sun-position-calculator/)
+[![GitHub](https://img.shields.io/badge/GitHub-Repository-blue)](https://github.com/battlefeel1942/sun-position-calculator)
+[![Website](https://img.shields.io/badge/Website-Live%20Demo-green)](https://battlefeel1942.github.io/sun-position-calculator/)
 
 ## Features
 
